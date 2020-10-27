@@ -1,4 +1,4 @@
-![lido3 logo](media/LiDO3-Logo.JPG) + ![statistik logo](media/logo_fk_2017.png)
+![statistik logo](media/logo_fk_2017.png) + ![lido3 logo](media/LiDO3-Logo.JPG)
 
 # cluster-doc
 
