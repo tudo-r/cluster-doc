@@ -8,12 +8,17 @@ Every reader is welcome to update and correct information in this repository.
 
 ## Contents
 
+### Statistic Cluster
+
+- General information about the Cluster - *missing*
+- Accessing Files from Home with WinSCP - *missing*
+- [batchtools and statistic cluster](docs/batchtools_statistic_cluster/index.md) - *missing*
+
 ### LiDO3
 
 - [Anleitung für das Einloggen bei LiDo3 außerhalb des Uni-Netzes für Windows-Rechner](docs/externes_einloggen_lido3/index.md)
 - [LiDO3](docs/lido3/index.md) - Ausführliche Anleitung zum Abschicken von R-Jobs via `sbatch` oder eigenem `submitR` Skript.
 - [batchtools and LiDO3](docs/batchtools_lido3/index.md) - *missing*
-- [batchtools and statistic cluster](docs/batchtools_statistic_cluster/index.md) - *missing*
 
 ### External Links
 
