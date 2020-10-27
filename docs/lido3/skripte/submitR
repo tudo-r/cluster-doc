@@ -1,0 +1,296 @@
+#!/bin/bash
+
+# Version 25-09-20
+
+#########################
+# Set default values here to avoid questions: 
+
+# Notifications: 
+mail="$USER@lido.tu-dortmund.de" #$USER@lido.tu-dortmund.de sends to unimail automatically
+mailtype="FAIL" #NONE, BEGIN, END, FAIL, ALL(=BEGIN,END,FAIL)
+
+# Job configuration: 
+mem=""
+time=""
+partition=""
+r_version="R/4.0.0-gcc93-base " 
+# Run 
+#   module avail -t 2>&1 | grep -F R/
+# on LiDo to display available R versions. 
+outdir="$WORK"
+
+#########################
+# question functions
+function get_mail() {
+    if [[ -z "$mail" ]]
+    then
+        read -p "Email address : " mail
+    fi
+    
+    echo $mail
+}
+function get_mailtype() {
+    if [[ -z "$mailtype" ]]
+    then 
+        read -p "Notification type [NONE, BEGIN, END, FAIL, ALL, def: ALL] : " mailtype
+    fi
+
+    if [[ -z "$mailtype" ]]
+    then
+        mailtype="ALL"
+    fi
+
+    echo $mailtype
+}
+function get_mem() {
+    if [[ -z "$mem" ]] 
+    then
+        read -p "Memory per CPU [in MB, def: 1024] : " mem
+    fi
+
+    if [[ -z "$mem" ]] 
+    then 
+        mem="1024"
+    fi
+    echo $mem
+}
+function get_time() {
+    if [[ -z "$time" ]]
+    then
+        read -p "Computation time [d-hh:[mm]:ss, def: 120] : " time
+    fi
+
+    if [[ -z "$time" ]]
+    then 
+        time="02:00:00"
+    fi
+    echo $time
+}
+function get_partition() {
+    if [[ -z "$partition" ]] 
+    then
+        read -p "Partition [short,med,long,ultralong, def: short] : " partition
+    fi
+
+    if [[ -z "$partition" ]] 
+    then 
+        partition="short"
+    fi
+    echo $partition
+}
+function get_r_version() {
+    if [[ -z "$r_version" ]]
+    then
+      echo "No R version specified. Select from: " > /dev/stderr
+      i=0
+      for r_v in $(module avail -t 2>&1 | grep -F R/); do
+        ((i++))
+        echo "$i: $r_v" > /dev/stderr
+      done
+      read -p "R version [1,...,$i, def: $i] : " selection
+
+      if [[ -z "$selection" ]]; 
+      then 
+          selection="$i"
+      fi
+          
+      i=1
+      for r_v in $(module avail -t 2>&1 | grep -F R/); do
+        if [[ $i -eq selection ]]
+        then
+          r_version=$r_v
+        fi
+        ((i++))
+      done
+    fi
+
+    echo $r_version
+}
+# helper functions
+function get_outdir() {
+    if [[ -z "$outdir" ]]
+    then
+        outdir="."
+    fi
+    echo $outdir
+}
+function expand_number_range() {
+    local range=$1
+    local head=${range%-*}
+    local tail=${range#*-}
+    for ((i = $head; i <= $tail; i++)); do
+        echo $i
+    done
+}
+function expand_replicate() {
+    IFS=',' read -ra ranges <<< "$1"
+    for range in ${ranges[@]}; do
+        expand_number_range $range
+    done
+}
+function query_replicate() {
+    if [[ -z "$replicate" ]]
+    then
+        replicate=1-1
+    fi
+    
+    if [[ "$replicate" == *-* ]]
+    then
+        echo $replicate
+    elif [[ "$replicate" == *,* ]] 
+    then
+        echo $replicate
+    else
+        echo 1-$replicate
+    fi
+}
+function get_pbs_filename() {
+    mktemp submitR_$1-$2.XXXXXX
+}
+
+function write_sbatch() {
+    RFILE=$1; shift
+
+    for i in "$@"; 
+    do
+        export "$i";
+    done
+
+    if [[ ! -f $RFILE ]]; 
+    then
+    	echo "Error: R file '$RFILE' does not exist.";
+	    exit -1;
+    fi
+
+    if [[ -z "$mail" ]] || [[ -z "$mailtype" ]] || [[ -z "$mem" ]] || [[ -z "$time" ]] || [[ -z "$partition" ]] || [[ -z "$r_version" ]]; 
+    then
+        echo "#######################################"
+        echo "Specify missing configuration: "
+        echo "> Tip: Set default values in script file. "
+    fi
+    
+    MAIL=$(get_mail)   
+    MAILTYPE=$(get_mailtype)
+
+    MEM=$(get_mem)
+    TIME=$(get_time)
+    PARTITION=$(get_partition) 
+    RMODULE=$(get_r_version)
+    
+    echo "#######################################"
+    echo "# Notifications: "
+    echo "  * Email: $MAIL" 
+    echo "  * Notification type: $MAILTYPE"
+    echo "# Job configuration: "
+    echo "  * Memory per CPU: $MEM"
+    echo "  * Time: $TIME"
+    echo "  * Partition: $PARTITION"
+    echo "  * R version: $RMODULE"
+    echo "#######################################"
+
+    NAME=$(basename $RFILE .R)_$$
+    JOBID=$(date +%s)
+    OUTDIR=$(get_outdir)
+    REPLICATE=$(query_replicate)
+    
+    PBSFILES=""
+    mkdir -p $OUTDIR
+
+    for taskid in $(expand_replicate $REPLICATE); do
+        PBSFILE=$(get_pbs_filename $JOBID $taskid);
+        #echo "Generating sbatch file: $PBSFILE";
+        OUTFILE="$OUTDIR/$NAME.$JOBID-$taskid.out"
+        (cat <<EOF
+#!/bin/bash
+
+#SBATCH --job-name=$NAME-$JOBID-$taskid
+#SBATCH --partition=$PARTITION
+#SBATCH --time=$TIME
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=$MEM
+#SBATCH --mail-user=$MAIL
+#SBATCH --mail-type=$MAILTYPE
+#SBATCH --output=$OUTFILE
+#SBATCH --error=$OUTFILE
+
+export PBS_ARRAYID=$taskid
+
+cd /work/\${USER}
+
+module purge
+module add $RMODULE
+
+Rscript $RFILE
+EOF
+    ) > $PBSFILE;
+        PBSFILES="$PBSFILES $PBSFILE";
+    done
+
+}
+
+function do_usage() {
+    cat <<EOF
+USAGE:
+
+  submitR <jobfile.R> [<key>=<value>]* 
+
+Recognized keys:
+  
+  replicate
+    Range of replication IDs for which to execute this job. Defaults
+    to '1-1', meaning run this job once with replication ID 1. Useful
+    for simulation studies. You can access the ID of the run using
+    Sys.getenv("PBS_ARRAYID") from within R.
+  
+  mem
+    Amount of RAM in MB to reserve *per core*. This is a hard limit, if you
+    exceed it, your job will be terminated!
+  
+  time
+    Expected runtime of the script. This is a hard limit, if you
+    exceed it, your job will be terminated! 
+    Possible formats are "mm:ss", "hh:mm:ss", "d-hh", "d-hh:mm", 
+    or "d-hh:mm:ss". 
+
+  partition
+    Either short (up to 2 hours), med (up to 8 hours), long 
+    (up to 48 hours), or ultralong. 
+
+  r_version
+    R module to be loaded. Run 
+      module avail -t 2>&1 | grep -F R/
+    to display installed modules. 
+
+  mailtype
+    Either ALL (default), BEGIN, END, FAIL, or NONE. 
+
+  mail
+    E-Mail address to use for notifications.
+
+  outdir
+    Directory used for all log and Rout output files. This directory
+    is created if it does not exists.
+EOF
+  exit 0
+}
+
+function submit_jobs() {    
+    write_sbatch "$@"
+    echo ""
+
+    for PBSFILE in $PBSFILES; 
+    do
+        QID=$(sbatch $PBSFILE)
+        rm -f $PBSFILE
+        echo "$QID"
+    done
+    printf "\n"
+}
+
+if [[ $# -eq 0 ]] 
+then
+    do_usage
+else    
+    submit_jobs "$@"
+fi

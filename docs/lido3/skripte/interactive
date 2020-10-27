@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Version 25-09-20
+
+function get_mem() {
+    if [[ -z "$mem" ]]
+    then
+        read -p "Memory per CPU [in MB] : " mem
+    fi
+
+    if [[ -z "$mem" ]] 
+    then 
+        mem="1024"
+        echo "Using default memory of $mem MB." > /dev/stderr
+    fi
+    echo $mem
+}
+function get_time() {
+    if [[ -z "$time" ]]
+    then
+        read -p "Time [d-hh:[mm]:ss] : " time
+    fi
+
+    if [[ -z "$time" ]]
+    then 
+        time="02:00:00"
+        echo "Using default time $time." > /dev/stderr
+    fi
+    echo $time
+}
+function get_partition() {
+    if [[ -z "$partition" ]]
+    then
+        read -p "Partition [short,med,long,ultralong] : " partition
+    fi
+
+    if [[ -z "$partition" ]]
+    then 
+        partition="short"
+        echo "Using $partition partition." > /dev/stderr
+    fi
+    echo $partition
+}
+
+function submit_job() {    
+    TIME=$(get_time)
+    PARTITION=$(get_partition)
+    MEM=$(get_mem)
+
+    echo "Send command: srun -p $PARTITION -t $TIME -N 1 --mem-per-cpu $MEM --pty bash"
+    printf "\n"
+    srun -p $PARTITION -t $TIME -N 1 --mem-per-cpu $MEM --pty bash
+}
+
+submit_job
+

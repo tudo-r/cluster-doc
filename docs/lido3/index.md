@@ -4,6 +4,8 @@ date: 25-Sep-2020
 author: Jona Lilienthal
 ---
 
+# LiDO-Kurzanleitung
+
 Diese Anleitung ist dazu gedacht Mitarbeitern der Fakultät Statistik eine Kurzeinführung in die Welt der R-Berechnung auf dem Rechencluster LiDO3 des ITMC zu geben. 
 Hierbei bezieht sich diese auf den Stand vom März 2020. 
 Da es immer zu System-Änderungen kommen kann (durch eine Neugestaltung von LiDO oder auch nur durch Systemaktualisierungen) können einzelne Abschnitte obsolet werden. 
@@ -536,7 +538,7 @@ an Slurm übergeben werden.
 
 ### Skripte
 
-Zur leichteren Ausführen von interaktiven Sitzungen und des Batch-Betriebs können die Skripte `interactive` und `submitR` verwendet werden, welche im Ordner `Skripte` im Verzeichnis dieser Kurzanleitung zu finden sind. 
+Zur leichteren Ausführen von interaktiven Sitzungen und des Batch-Betriebs können die Skripte `interactive` und `submitR` verwendet werden, welche im Ordner [`skripte`](skripte/) im Verzeichnis dieser Kurzanleitung zu finden sind. 
 Die Funktionsweise lehnt sich dabei an die gleichnamigen Skripte an, welche auf dem Rechencluster der Fakultät Statistik verfügbar sind. 
 Diese Skripte sind **keine** Funktionen von LiDO oder Slurm und es ist nicht gewährleistet, dass sie funktionieren. 
 
